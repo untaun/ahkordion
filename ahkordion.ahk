@@ -210,7 +210,7 @@ guiUpdate() {
     , ma3   := !b3 and n3
     , no3   := !b3 and !n3 and n5
     , aug   := ma3 and b6 and !n5
-    , dim   := mi3 and b5 and !n5
+    , dim   := mi3 and b5 and !n5 and !n7
     , dim7  := dim and n6
     , hdim  := dim and !n6 and b7
     , sus2  := no3 and n2 and !n4
