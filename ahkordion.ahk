@@ -87,7 +87,6 @@ CapsLock up:: isBends ? bend(1)     :
 #if
 
 keyPress(k) {
-  critical -1
   if pressedKeys[k]
     return
   pressedKeys[k] := 1
@@ -102,7 +101,6 @@ keyPress(k) {
 }
 
 keyRelease(k) {
-  critical -1
   pressedKeys[k] := 0
   if !(anyKey and savedKeys.HasKey(k))
     return
@@ -117,7 +115,7 @@ keyRelease(k) {
 }
 
 mute(noStrum:=1) {
-  midiSend(0xB0, 0x7B)
+  critical -1
   for m in savedMidi
     playNote(-m), noStrum or playNote(m)
   (noStrum) and (anyKey := 0, savedKeys := {}, savedMidi := {})
