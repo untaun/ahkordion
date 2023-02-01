@@ -18,6 +18,7 @@ global midiPort    := 1
 , savedMidi := {}
 , buttonsAmount := 0
 , lastVelocity := 0
+, isPalmMute := 0
 , guiWindow := "ahk_class AutoHotkeyGUI"
 
 #NoEnv
@@ -58,7 +59,7 @@ for key, code in StrSplit(layout, " ") {
        RAlt:: isSustain := !isSustain, updateInfo()
     AppsKey:: isBends := !isBends, updateInfo()
    Space up:: (lastVelocity != lowVelocity) and mute()
-          2:: mute()
+          2:: (isPalmMute) or mute()
           3::
           4:: mute(0)
           1:: isBends ? bend(2, 1)  :
@@ -152,6 +153,7 @@ pitch(value:="") {
 playNote(midi) {
   lastVelocity := !isBends or !GetKeyState("Space","P") ? velocity : lowVelocity
   , midiSend(0x90, abs(midi), (midi > 0) * lastVelocity)
+  , isPalmMute := isBends and velocity != lastVelocity
 }
 
 setCC(value:=0) {
