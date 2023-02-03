@@ -128,7 +128,7 @@ bend(semitones, value:=0, ms:=1) {
   static middle
   middle := 0
   , semi := abs(semitones)
-  , limit := round(100 / bendRange * semitones)
+  , limit := round(100 / (A_ThisHotkey = "BS" ? 2 : bendRange) * semitones)
   , step := limit / (bendRange = semi or bendRange * semi = 12 ? 25 : 20)
   , value and value := limit
   if step > 0
