@@ -193,8 +193,6 @@ noteName(midi, withOctave:=1) {
 }
 
 guiUpdate() {
-  static degrees := ["n1","b2","n2","b3","n3","n4","b5","n5","b6","n6","b7","n7"]
-  , b := chr(0x266D), # := chr(0x266F), hd := chr(0xF8), d := chr(0x2070)
   loop % buttonsAmount
     rowNumber := mod(A_Index - 1, 3), row%rowNumber% .= chr(0x26AA + savedKeys.HasKey(A_Index))
   for i, midi in savedMidi, codes := [], redundantCodes := {} {
@@ -203,44 +201,53 @@ guiUpdate() {
     (redundantCodes[midi]) or codes.push(midi)
   }
   chordLength := codes.count()
+  letter := codes.1
   loop % chordLength {
-    for _, midi in codes
-      deg := degrees[mod(abs(midi - codes.1), 12) + 1], %deg% := 1
-    mi3     := b3 and !n3
-    , ma3   := !b3 and n3
-    , no3   := !b3 and !n3 and n5
-    , aug   := ma3 and b6 and !n5
-    , dim   := mi3 and b5 and !n5 and !n7
-    , dim7  := dim and n6
-    , hdim  := dim and !n6 and b7
-    , sus2  := no3 and n2 and !n4
-    , sus4  := no3 and !n2 and n4
-    , is6   := !dim and n6
-    , is7   := !dim and (b7 or n7)
-    , is9   := !sus2 and n2
-    , is11  := !sus4 and n4
-    , b9    := b2 ? "(" b "9)" : ""
-    , n9    := !is7 and is9 ? "(9)" : ""
-    , s9    := b3 and n3 ? "(" # "9)" : ""
-    , n11   := !is7 and is11 ? "(11)" : ""
-    , s11   := !dim and b5 ? "(" (n5 ? # 11 : b 5) ")" : ""
-    , b13   := !aug and b6 ? "(" (n5 ? b 13 : # 5) ")" : ""
-    , root  := noteName(codes.1, 0)
-    , type  := no3 and chordLength = 2 ? 5 : aug ? "+" : hdim ? hd : dim7 ? d 7 : dim ? d : mi3 ? "m" : ""
-    , six   := !is7 and is6 ? 6 : ""
-    , maj   := is7 and !b7 ? "maj" : ""
-    , dom   := is7 ? is6 ? 13 : is11 ? 11 : is9 ? 9 : 7 : ""
-    , sus   := sus2 ? "sus2" : sus4 ? "sus4" : ""
-    , add   := " " StrReplace(b9 n9 s9 n11 s11 b13, ")(", ", ")
-    , chord .= "`n" root type six maj dom sus add
-    for _, deg in degrees
-      %deg% := 0
+    chordVariant := getChord(codes)
+    chord .= "`n" chordVariant.1 (!chordVariant.2 and codes.1 != letter ? "/" noteName(letter, 0) : "")
     transposedNote := codes.RemoveAt(1)
     while transposedNote <= codes[chordLength - 1]
       transposedNote += 12
     codes.push(transposedNote)
   }
   GuiControl,, guiText, % row0 "`n " row1 "`n   " row2 chord
+}
+
+getChord(ByRef codes) {
+  static degrees := ["n1","b2","n2","b3","n3","n4","b5","n5","b6","n6","b7","n7"]
+  , b := chr(0x266D), # := chr(0x266F), hd := chr(0xF8), d := chr(0x2070)
+  for _, midi in codes
+    deg := degrees[mod(abs(midi - codes.1), 12) + 1], %deg% := 1
+  mi3     := b3 and !n3
+  , ma3   := !b3 and n3
+  , no3   := !b3 and !n3 and n5
+  , aug   := ma3 and b6 and !n5
+  , dim   := mi3 and b5 and !n5 and !n7
+  , dim7  := dim and n6
+  , hdim  := dim and !n6 and b7
+  , sus2  := no3 and n2 and !n4
+  , sus4  := no3 and !n2 and n4
+  , is6   := !dim and n6
+  , is7   := !dim and (b7 or n7)
+  , is9   := !sus2 and n2
+  , is11  := !sus4 and n4
+  , b9    := b2 ? "(" b "9)" : ""
+  , n9    := !is7 and is9 ? "(9)" : ""
+  , s9    := b3 and n3 ? "(" # "9)" : ""
+  , n11   := !is7 and is11 ? "(11)" : ""
+  , s11   := !dim and b5 ? "(" (n5 ? # 11 : b 5) ")" : ""
+  , b13   := !aug and b6 ? "(" (n5 ? b 13 : # 5) ")" : ""
+  , root  := noteName(codes.1, 0)
+  , type  := no3 and codes.count() = 2 ? 5 : aug ? "+" : hdim ? hd : dim7 ? d 7 : dim ? d : mi3 ? "m" : ""
+  , six   := !is7 and is6 ? 6 : ""
+  , maj   := is7 and !b7 ? "maj" : ""
+  , dom   := is7 ? is6 ? 13 : is11 ? 11 : is9 ? 9 : 7 : ""
+  , sus   := sus2 ? "sus2" : sus4 ? "sus4" : ""
+  , add   := StrReplace(b9 n9 s9 n11 s11 b13, ")(", ", ", addCounter)
+  , chord := root type six maj dom sus (add ? " " add : "")
+  for _, deg in degrees
+    %deg% := 0
+  return [chord, !!add + addCounter]
 }
 
 updateInfo() {
