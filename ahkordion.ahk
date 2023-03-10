@@ -58,8 +58,8 @@ for key, code in StrSplit(layout, " ") {
 #if WinActive(guiWindow)
        RAlt:: isSustain := !isSustain, updateInfo()
     AppsKey:: isBends := !isBends, updateInfo()
-   Space up:: (lastVelocity != lowVelocity) and mute()
-          2:: (isPalmMute) or mute()
+   Space up:: (isPalmMute) or mute()
+          2:: mute()
           3::
           4:: mute(0)
           1:: isBends ? bend(2, 1)  :
