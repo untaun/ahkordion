@@ -106,7 +106,7 @@ keyRelease(k) {
   if !(anyKey and savedKeys.HasKey(k))
     return
   anyKey--
-  if isSustain or !isBends and pedal()
+  if isSustain or pedal()
     return
   m := keyToMidi(k, savedKeys[k])
   , playNote(-m)
@@ -151,7 +151,7 @@ pitch(value:="") {
 }
 
 pedal() {
-  return !isBends and GetKeyState("LShift","P") or GetKeyState("Space","P")
+  return !isBends and (GetKeyState("LShift","P") or GetKeyState("Space","P"))
 }
 
 playNote(midi) {
