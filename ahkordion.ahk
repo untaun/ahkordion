@@ -62,13 +62,13 @@ for key, code in StrSplit(layout, " ") {
           2:: mute()
           3::
           4:: mute(0)
-          1:: isBends ? bend(2, 1)  :
+          1:: isBends ? bend(2, 1)  : octaveShift()
        1 up:: isBends ? bend(-2)    :
         Tab:: isBends ? bend(1, 1)  : octaveShift(1)
      Tab up:: isBends ? bend(-1)    :
    CapsLock:: isBends ? bend(-1, 1) : octaveShift(-1)
 CapsLock up:: isBends ? bend(1)     :
-     LShift:: isBends ? bend(-2, 1) : octaveShift()
+     LShift:: isBends ? bend(-2, 1) :
   LShift up:: isBends ? bend(2)     :
          BS:: bend(-2, 1, 1.5), mute(), DllCall("Sleep", "UInt", 175), pitch(0)
  ScrollLock:: bendRange := bendRange = 2 ? 12 : 2
@@ -77,8 +77,8 @@ CapsLock up:: isBends ? bend(1)     :
        Down:: octaveShift()
          F3:: mute(), midiChannel -= midiChannel > 0, updateInfo()
          F4:: mute(), midiChannel += midiChannel < 15, updateInfo()
-         F6:: (velocity > 20) and velocity -= 10 - 3 * (velocity = 127), updateInfo()
-         F7:: (velocity < 127) and velocity += 10 - 3 * (velocity = 120), updateInfo()
+         F6:: velocity -= (velocity > 20) * (10 - 3 * (velocity = 127)), updateInfo()
+         F7:: velocity += (velocity < 127) * (10 - 3 * (velocity = 120)), updateInfo()
         F11:: firstNote -= firstNote > 21, updateInfo()
         F12:: firstNote += firstNote < 72, updateInfo()
        SC29:: (ccOn) or setCC(128), ccOn := 1
@@ -91,14 +91,14 @@ keyPress(k) {
   if pressedKeys[k]
     return
   pressedKeys[k] := 1
-  , isSustain and !anyKey and mute()
+  , isSustain and !anyKey and !pedal() and mute()
   , anyKey++
   , m := keyToMidi(k)
   , savedMidi[m] and playNote(-m)
   , playNote(m)
   , savedKeys[k] := octaveIndex
   , savedMidi[m] := m
-  SetTimer guiUpdate, -10
+  , guiUpdate()
 }
 
 keyRelease(k) {
@@ -106,13 +106,13 @@ keyRelease(k) {
   if !(anyKey and savedKeys.HasKey(k))
     return
   anyKey--
-  if isSustain
+  if isSustain or !isBends and pedal()
     return
   m := keyToMidi(k, savedKeys[k])
   , playNote(-m)
   , savedKeys.delete(k)
   , savedMidi.delete(m)
-  SetTimer guiUpdate, -10
+  , guiUpdate()
 }
 
 mute(noStrum:=1) {
@@ -120,7 +120,7 @@ mute(noStrum:=1) {
   for m in savedMidi
     playNote(-m), noStrum or playNote(m)
   (noStrum) and (anyKey := 0, savedKeys := {}, savedMidi := {})
-  SetTimer guiUpdate, -10
+  , guiUpdate()
 }
 
 bend(semitones, value:=0, ms:=1) {
@@ -150,6 +150,10 @@ pitch(value:="") {
   return savedPitch
 }
 
+pedal() {
+  return !isBends and GetKeyState("LShift","P") or GetKeyState("Space","P")
+}
+
 playNote(midi) {
   lastVelocity := !isBends or !GetKeyState("Space","P") ? velocity : lowVelocity
   , midiSend(0x90, abs(midi), (midi > 0) * lastVelocity)
@@ -157,7 +161,8 @@ playNote(midi) {
 }
 
 setCC(value:=0) {
-  ccValue += value, ccValue := ccValue < 0 ? 0 : ccValue > 127 ? 127 : ccValue
+  ccValue += value
+  , ccValue := ccValue < 0 ? 0 : ccValue > 127 ? 127 : ccValue
   , midiSend(0xB0, ccNumber, ccValue)
 }
 
@@ -173,14 +178,15 @@ midiInput(hInput, midiMsg, wMsg) {
   , data1 := (midiMsg >> 8) & 0xFF
   , data2 := (midiMsg >> 16) & 0xFF
   if status between 128 and 159
-    key := 1 - (firstNote - data1) - 12 * octaveIndex, data2 and status = 0x90 ? keyPress(key) : keyRelease(key)
+    key := 1 - (firstNote - data1) - 12 * octaveIndex
+    , data2 and status = 0x90 ? keyPress(key) : keyRelease(key)
   else if (status = 0xB0 and data1 = 0x7B)
     mute()
 }
 
 octaveShift(value:=0) {
   octaveIndex += value > 0 ? octaveIndex < 3 : value < 0 ? -(octaveIndex > -2) : octaveIndex := 0
-  updateInfo()
+  , updateInfo()
 }
 
 keyToMidi(key, octave:=7) {
@@ -194,18 +200,19 @@ noteName(midi, withOctave:=1) {
 
 guiUpdate() {
   loop % buttonsAmount
-    rowNumber := mod(A_Index - 1, 3), row%rowNumber% .= chr(0x26AA + savedKeys.HasKey(A_Index))
+    rowNumber := mod(A_Index - 1, 3)
+    , row%rowNumber% .= chr(0x26AA + savedKeys.HasKey(A_Index))
   for i, midi in savedMidi, codes := [], redundantCodes := {} {
     for j, nextMidi in savedMidi
       (j > i) and mod(nextMidi, 12) = mod(midi, 12) and redundantCodes[nextMidi] := 1
     (redundantCodes[midi]) or codes.push(midi)
   }
   chordLength := codes.count()
-  letter := codes.1
+  , letter := codes.1
   loop % chordLength {
     chordVariant := getChord(codes)
-    chord .= "`n" chordVariant.1 (!chordVariant.2 and codes.1 != letter ? "/" noteName(letter, 0) : "")
-    transposedNote := codes.RemoveAt(1)
+    , chord .= "`n" chordVariant.1 (!chordVariant.2 and codes.1 != letter ? "/" noteName(letter, 0) : "")
+    , transposedNote := codes.RemoveAt(1)
     while transposedNote <= codes[chordLength - 1]
       transposedNote += 12
     codes.push(transposedNote)
